@@ -38,10 +38,11 @@ export class AsgDeployBuild extends Construct {
                         `LT_ID=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names ${asgName} --region ${region} --query 'AutoScalingGroups[0].LaunchTemplate.LaunchTemplateId' --output text)`,
                         // Create a new launch template version with the new AMI, inheriting all other settings
                         `NEW_LT_VERSION=$(aws ec2 create-launch-template-version --launch-template-id $LT_ID --source-version '$Latest' --launch-template-data "{\\"ImageId\\":\\"$AMI_ID\\"}" --region ${region} --query 'LaunchTemplateVersion.VersionNumber' --output text)`,
-                        // Point the ASG at the new launch template version
-                        `aws autoscaling update-auto-scaling-group --auto-scaling-group-name ${asgName} --launch-template "LaunchTemplateId=$LT_ID,Version=$NEW_LT_VERSION" --region ${region}`,
-                        // Trigger a rolling instance refresh so all instances pick up the new AMI
-                        `REFRESH_ID=$(aws autoscaling start-instance-refresh --auto-scaling-group-name ${asgName} --region ${region} --preferences '{"MinHealthyPercentage":50,"InstanceWarmup":300}' --query InstanceRefreshId --output text)`,
+                        // Trigger a rolling instance refresh using the new launch template version as the desired
+                        // configuration. This avoids UpdateAutoScalingGroup (which requires ec2:RunInstances on
+                        // the launch template) while still permanently updating the ASG's launch template on
+                        // successful completion of the refresh.
+                        `REFRESH_ID=$(aws autoscaling start-instance-refresh --auto-scaling-group-name ${asgName} --region ${region} --desired-configuration "{\\"LaunchTemplate\\":{\\"LaunchTemplateId\\":\\"$LT_ID\\",\\"Version\\":\\"$NEW_LT_VERSION\\"}}" --preferences '{"MinHealthyPercentage":50,"InstanceWarmup":300}' --query InstanceRefreshId --output text)`,
                         `echo "Instance refresh started: $REFRESH_ID"`,
                         [
                             `while true; do`,
