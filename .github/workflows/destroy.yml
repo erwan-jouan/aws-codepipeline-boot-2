@@ -1,4 +1,5 @@
 name: destroy
+run-name: "destroy — ${{ inputs.deployment_name }}"
 
 on:
   workflow_dispatch:
