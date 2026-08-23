@@ -27,6 +27,7 @@ env:
   AWS_GITHUB_CONNECTION_ARN: ${{ secrets.AWS_GITHUB_CONNECTION_ARN }}
   DEPLOYMENT_NAME: ${{ inputs.deployment_name }}
   PROJECT_NAME: aws-codepipeline-boot-2
+  PROJECT_DEPLOYMENT_NAME: aws-codepipeline-boot-2-${{ inputs.deployment_name }}
   TARGET_ARCHITECTURE: x86_64
 
 jobs:
