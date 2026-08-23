@@ -1,3 +1,4 @@
+import { Duration, RemovalPolicy } from 'aws-cdk-lib';
 import { Key } from 'aws-cdk-lib/aws-kms';
 import { AccountPrincipal, Effect, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Construct } from 'constructs';
@@ -12,6 +13,8 @@ export class ArtifactKmsKey extends Construct {
         this.key = new Key(this, 'Key', {
             description: 'Cross-account artifact encryption key for Fargate pipeline',
             enableKeyRotation: true,
+            removalPolicy: RemovalPolicy.DESTROY,
+            pendingWindow: Duration.days(7),
         });
 
         // Allow PROD account to decrypt artifacts
