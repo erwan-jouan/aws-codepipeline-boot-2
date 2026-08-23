@@ -8,11 +8,11 @@ import { Constants } from '../../lib/constants';
 const app = new cdk.App();
 
 // Cross-account ASG rolling update:
-//   asg-rolling-app  → PROD account (VPC, ALB, ASG, cross-account deploy role)
-//   asg-rolling-cicd → CICD account (CodePipeline: Maven build + CodeArtifact publish + instance refresh)
+//   asg-rolling-update-app  → PROD account (VPC, ALB, ASG, cross-account deploy role)
+//   asg-rolling-update-cicd → CICD account (CodePipeline: Maven build + CodeArtifact publish + instance refresh)
 // Deploy order: app first, then cicd.
 
-const asgApp = 'asg-rolling-app';
+const asgApp = 'asg-rolling-update-app';
 new AsgRollingAppStack(app, asgApp, {
     stackName: asgApp,
     env: {
@@ -21,7 +21,7 @@ new AsgRollingAppStack(app, asgApp, {
     },
 });
 
-const asgCicd = 'asg-rolling-cicd';
+const asgCicd = 'asg-rolling-update-cicd';
 new AsgRollingCicdStack(app, asgCicd, {
     stackName: asgCicd,
     env: {

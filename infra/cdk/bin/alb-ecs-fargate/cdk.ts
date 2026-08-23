@@ -7,11 +7,11 @@ import {FargateCicdStack} from '../../lib/alb-ecs-fargate/cicd/cdk-stack';
 const app = new cdk.App();
 
 // Cross-account Fargate deployment:
-//   fargate-app  → PROD account (ECS cluster, ALB, cross-account deploy role)
-//   fargate-cicd → CICD account (CodePipeline: build + push ECR + deploy to PROD ECS)
+//   alb-ecs-fargate-app  → PROD account (ECS cluster, ALB, cross-account deploy role)
+//   alb-ecs-fargate-cicd → CICD account (CodePipeline: build + push ECR + deploy to PROD ECS)
 // Deploy order: app first, then cicd.
 
-const fargateApp = 'fargate-app';
+const fargateApp = 'alb-ecs-fargate-app';
 new FargateAppStack(app, fargateApp, {
     stackName: fargateApp,
     env: {
@@ -20,7 +20,7 @@ new FargateAppStack(app, fargateApp, {
     }
 })
 
-const fargateCicd = 'fargate-cicd';
+const fargateCicd = 'alb-ecs-fargate-cicd';
 new FargateCicdStack(app, fargateCicd, {
     stackName: fargateCicd,
     env: {

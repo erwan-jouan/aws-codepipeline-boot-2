@@ -1,7 +1,16 @@
-name: asg-rolling-update-deploy
+  name: deploy
 
 on:
   workflow_dispatch:
+    inputs:
+      deployment_name:
+        description: 'Deployment to deploy'
+        required: true
+        type: choice
+        options:
+          - alb-ecs-fargate
+          - asg-rolling-update
+          - ec2-image-builder
 
 permissions:
   id-token: write
@@ -16,24 +25,25 @@ env:
   AWS_ORGANIZATION_UNIT_ID: ${{ secrets.AWS_ORGANIZATION_UNIT_ID }}
   AWS_GITHUB_CONNECTION_ARN: ${{ secrets.AWS_GITHUB_CONNECTION_ARN }}
   PROJECT_NAME: 'aws-codepipeline-boot-2'
-  DEPLOYMENT_NAME: 'asg-rolling-update'
-  PROJECT_DEPLOYMENT_NAME: 'aws-codepipeline-boot-2-asg-rolling-update'
-  TARGET_ARCHITECTURE: 'x86_64'
-  #TARGET_ARCHITECTURE: 'arm64'
+
 jobs:
-  deploy-asg-rolling-app:
+  launch-runner:
+    uses: erwan-jouan/aws-accounts-utilities/.github/workflows/launch-runner.yml@main
+    secrets: inherit
+    permissions:
+      id-token: write
+      contents: read
+
+  deploy:
+    needs: launch-runner
+    runs-on: [self-hosted, "${{ needs.launch-runner.outputs.runner-name }}"]
     environment: production
-    name: Deploy app (PROD account)
-    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Configure AWS credentials (PROD account)
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: arn:aws:iam::${{ secrets.PROD_ACCOUNT_ID }}:role/${{ env.ROLE_NAME }}
-          aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -49,23 +59,22 @@ jobs:
       - name: Install AWS CDK
         run: npm install -g aws-cdk
 
-      - name: Deploy app
+      - name: Configure AWS credentials (PROD account)
+        if: inputs.deployment_name != 'ec2-image-builder'
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.PROD_ACCOUNT_ID }}:role/${{ env.ROLE_NAME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Deploy app stack
+        if: inputs.deployment_name != 'ec2-image-builder'
         working-directory: infra/cdk
         run: |
           cdk deploy \
-            --app "npx ts-node --prefer-ts-exts bin/${{ env.DEPLOYMENT_NAME }}/cdk.ts" \
+            --app "npx ts-node --prefer-ts-exts bin/${{ inputs.deployment_name }}/cdk.ts" \
             --require-approval never \
-            asg-rolling-app \
+            ${{ inputs.deployment_name }}-app \
             --exclusively
-
-  deploy-asg-rolling-cicd:
-    environment: production
-    name: Deploy cicd (CICD account)
-    runs-on: ubuntu-latest
-    needs: deploy-asg-rolling-app
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
 
       - name: Configure AWS credentials (CICD account)
         uses: aws-actions/configure-aws-credentials@v4
@@ -73,25 +82,11 @@ jobs:
           role-to-assume: arn:aws:iam::${{ secrets.CICD_ACCOUNT_ID }}:role/${{ env.ROLE_NAME }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ vars.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: infra/cdk/package-lock.json
-
-      - name: Install dependencies
-        working-directory: infra/cdk
-        run: npm ci
-
-      - name: Install AWS CDK
-        run: npm install -g aws-cdk
-
-      - name: Deploy cicd
+      - name: Deploy cicd stack
         working-directory: infra/cdk
         run: |
           cdk deploy \
-            --app "npx ts-node --prefer-ts-exts bin/${{ env.DEPLOYMENT_NAME }}/cdk.ts" \
+            --app "npx ts-node --prefer-ts-exts bin/${{ inputs.deployment_name }}/cdk.ts" \
             --require-approval never \
-            asg-rolling-cicd \
+            ${{ inputs.deployment_name }}-cicd \
             --exclusively

@@ -1,7 +1,16 @@
-name: alb-ecs-fargate-destroy
+name: destroy
 
 on:
   workflow_dispatch:
+    inputs:
+      deployment_name:
+        description: 'Deployment to destroy'
+        required: true
+        type: choice
+        options:
+          - alb-ecs-fargate
+          - asg-rolling-update
+          - ec2-image-builder
 
 permissions:
   id-token: write
@@ -15,18 +24,40 @@ env:
   AWS_ORGANIZATION_ID: ${{ secrets.AWS_ORGANIZATION_ID }}
   AWS_ORGANIZATION_UNIT_ID: ${{ secrets.AWS_ORGANIZATION_UNIT_ID }}
   AWS_GITHUB_CONNECTION_ARN: ${{ secrets.AWS_GITHUB_CONNECTION_ARN }}
-  PROJECT_NAME:  'aws-codepipeline-boot-2'
-  DEPLOYMENT_NAME: 'alb-ecs-fargate'
-  PROJECT_DEPLOYMENT_NAME: 'aws-codepipeline-boot-2-alb-ecs-fargate'
+  PROJECT_NAME: 'aws-codepipeline-boot-2'
 
 jobs:
-  destroy-fargate-cicd:
+  launch-runner:
+    uses: erwan-jouan/aws-accounts-utilities/.github/workflows/launch-runner.yml@main
+    secrets: inherit
+    permissions:
+      id-token: write
+      contents: read
+
+  destroy:
+    needs: launch-runner
+    runs-on: [self-hosted, "${{ needs.launch-runner.outputs.runner-name }}"]
     environment: production
-    name: Destroy cicd (CICD account)
-    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ vars.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: infra/cdk/package-lock.json
+
+      - name: Install dependencies
+        working-directory: infra/cdk
+        run: npm ci
+
+      - name: Install AWS CDK
+        run: npm install -g aws-cdk
 
       - name: Configure AWS credentials (CICD account)
         uses: aws-actions/configure-aws-credentials@v4
@@ -34,63 +65,28 @@ jobs:
           role-to-assume: arn:aws:iam::${{ secrets.CICD_ACCOUNT_ID }}:role/${{ env.ROLE_NAME }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ vars.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: infra/cdk/package-lock.json
-
-      - name: Install dependencies
-        working-directory: infra/cdk
-        run: npm ci
-
-      - name: Install AWS CDK
-        run: npm install -g aws-cdk
-
-      - name: Destroy cicd
+      - name: Destroy cicd stack
         working-directory: infra/cdk
         run: |
           cdk destroy \
-            --app "npx ts-node --prefer-ts-exts bin/${{ env.DEPLOYMENT_NAME }}/cdk.ts" \
+            --app "npx ts-node --prefer-ts-exts bin/${{ inputs.deployment_name }}/cdk.ts" \
             --force \
-            fargate-cicd \
+            ${{ inputs.deployment_name }}-cicd \
             --exclusively
 
-  destroy-fargate-app:
-    environment: production
-    name: Destroy app (PROD account)
-    runs-on: ubuntu-latest
-    needs: destroy-fargate-cicd
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
       - name: Configure AWS credentials (PROD account)
+        if: inputs.deployment_name != 'ec2-image-builder'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ secrets.PROD_ACCOUNT_ID }}:role/${{ env.ROLE_NAME }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ vars.NODE_VERSION }}
-          cache: 'npm'
-          cache-dependency-path: infra/cdk/package-lock.json
-
-      - name: Install dependencies
-        working-directory: infra/cdk
-        run: npm ci
-
-      - name: Install AWS CDK
-        run: npm install -g aws-cdk
-
-      - name: Destroy app
+      - name: Destroy app stack
+        if: inputs.deployment_name != 'ec2-image-builder'
         working-directory: infra/cdk
         run: |
           cdk destroy \
-            --app "npx ts-node --prefer-ts-exts bin/${{ env.DEPLOYMENT_NAME }}/cdk.ts" \
+            --app "npx ts-node --prefer-ts-exts bin/${{ inputs.deployment_name }}/cdk.ts" \
             --force \
-            fargate-app \
+            ${{ inputs.deployment_name }}-app \
             --exclusively
