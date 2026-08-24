@@ -24,13 +24,9 @@ export class CrossAccountDeployRole extends Construct {
                         'ec2:DescribeLaunchTemplates',
                         'ec2:DescribeLaunchTemplateVersions',
                         'ec2:CreateLaunchTemplateVersion',
+                        'ec2:ModifyLaunchTemplate',
                     ],
                     resources: ['*'],
-                }),
-                new PolicyStatement({
-                    effect: Effect.ALLOW,
-                    actions: ['ec2:RunInstances'],
-                    resources: [`arn:aws:ec2:*:${process.env.PROD_ACCOUNT_ID}:launch-template/*`],
                 }),
                 new PolicyStatement({
                     effect: Effect.ALLOW,
