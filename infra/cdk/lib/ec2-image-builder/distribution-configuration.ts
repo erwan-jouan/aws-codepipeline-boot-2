@@ -3,46 +3,57 @@ import { Construct } from "constructs";
 import { Constants } from "../constants";
 import { Ec2Architecture } from "../utils/ec2-architecture";
 
+export interface DistributionConfigurationProps {
+    architecture: Ec2Architecture;
+    projectName: string;
+    cicdAccountId: string;
+    prodAccountId: string;
+    region: string;
+}
+
 export class DistributionConfiguration extends Construct {
 
-    constructor(scope: Construct, id: string, architecture:Ec2Architecture) {
-        super(scope, id)
+    arn: string;
 
-        const organizationalUnitArn = `arn:aws:organizations::${process.env.CICD_ACCOUNT_ID}:ou/${Constants.ORGANIZATION_ID}/${Constants.ORGANIZATION_UNIT_ID}`;
+    constructor(scope: Construct, id: string, props: DistributionConfigurationProps) {
+        super(scope, id);
+
+        const { projectName, cicdAccountId, prodAccountId, region, architecture } = props;
+
+        const organizationalUnitArn = `arn:aws:organizations::${cicdAccountId}:ou/${Constants.ORGANIZATION_ID}/${Constants.ORGANIZATION_UNIT_ID}`;
 
         const lcProperty: CfnDistributionConfiguration.LaunchPermissionConfigurationProperty = {
             organizationalUnitArns: [organizationalUnitArn],
-            userIds: [process.env.PROD_ACCOUNT_ID!],
-        }
+            userIds: [prodAccountId],
+        };
 
-        const amiDistributionConfigurationName = `${process.env.PROJECT_NAME}-${architecture.label}-${process.env.CDK_DEFAULT_REGION}-{{ imagebuilder:buildDate }}`
+        const amiDistributionConfigurationName = `${projectName}-${architecture.label}-${region}-{{ imagebuilder:buildDate }}`;
 
         const amiDistributionConfiguration: CfnDistributionConfiguration.AmiDistributionConfigurationProperty = {
             name: amiDistributionConfigurationName,
             amiTags: {
-                "Name": `${process.env.PROJECT_NAME}`,
+                "Name": projectName,
                 "Architecture": architecture.label,
-                "BaseOs": "al2023"
+                "BaseOs": "al2023",
             },
             description: "Ami with agents and Java",
-            launchPermissionConfiguration: lcProperty
-        }
+            launchPermissionConfiguration: lcProperty,
+        };
 
         const distProps: CfnDistributionConfiguration.DistributionProperty = {
-            region: process.env.CDK_DEFAULT_REGION!,
-            amiDistributionConfiguration: amiDistributionConfiguration
-        }
+            region: region,
+            amiDistributionConfiguration: amiDistributionConfiguration,
+        };
 
         const distributionConfiguration = new CfnDistributionConfiguration(this, 'distributionConfiguration', {
-            name: `${process.env.PROJECT_NAME}`,
+            name: projectName,
             distributions: [distProps],
             tags: {
-                "Name": `${process.env.PROJECT_NAME}`,
+                "Name": projectName,
                 "Architecture": architecture.label,
-                "BaseOs": "al2023"
-            }
-        })
-        this.arn = distributionConfiguration.attrArn
+                "BaseOs": "al2023",
+            },
+        });
+        this.arn = distributionConfiguration.attrArn;
     }
-    arn: string;
 }

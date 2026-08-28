@@ -1,27 +1,31 @@
 import { CfnImagePipeline } from "aws-cdk-lib/aws-imagebuilder";
 import { Construct } from "constructs";
-import { Constants } from "../constants";
+
+export interface ImagePipelineProps {
+    distributionConfigurationArn: string;
+    imageRecipeArn: string;
+    infrastructureConfigurationArn: string;
+    projectName: string;
+}
 
 export class ImagePipeline extends Construct {
-    constructor(scope: Construct, id: string, distributionConfigurationArn: string, imageRecipeArn: string,
-        infrastructureConfigurationArn: string) {
-
+    constructor(scope: Construct, id: string, props: ImagePipelineProps) {
         super(scope, id);
 
         new CfnImagePipeline(this, 'imagePipeline', {
-            name: `${process.env.PROJECT_NAME}-pipeline`,
+            name: `${props.projectName}-pipeline`,
             description: "Pipeline for EC2 Image Builder",
-            distributionConfigurationArn: distributionConfigurationArn,
-            imageRecipeArn: imageRecipeArn,
-            infrastructureConfigurationArn: infrastructureConfigurationArn,
+            distributionConfigurationArn: props.distributionConfigurationArn,
+            imageRecipeArn: props.imageRecipeArn,
+            infrastructureConfigurationArn: props.infrastructureConfigurationArn,
             status: "ENABLED",
             schedule: {
                 scheduleExpression: 'cron(0 0 ? * SUN *)',
-                pipelineExecutionStartCondition: 'EXPRESSION_MATCH_ONLY'
+                pipelineExecutionStartCondition: 'EXPRESSION_MATCH_ONLY',
             },
             tags: {
-                'Name': `${process.env.PROJECT_NAME}`
-            }
+                'Name': props.projectName,
+            },
         });
     }
 }

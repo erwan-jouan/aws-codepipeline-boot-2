@@ -2,17 +2,20 @@ import { CfnComponent } from "aws-cdk-lib/aws-imagebuilder";
 import { Construct } from "constructs";
 import path = require("path");
 import fs = require('fs');
-import { Constants } from "../constants";
 
-export class BinariesComponent extends Construct  {
+export interface BinariesComponentProps {
+    projectName: string;
+}
 
-    cfnComponent: CfnComponent;
+export class BinariesComponent extends Construct {
 
-    constructor(scope: Construct, id: string) {
+    arn: string;
+
+    constructor(scope: Construct, id: string, props: BinariesComponentProps) {
         super(scope, id);
-        const data = fs.readFileSync(path.join('lib', 'ec2-image-builder', 'template', 'binaries-component.yml'), { encoding: 'utf-8' })
+        const data = fs.readFileSync(path.join('lib', 'ec2-image-builder', 'template', 'binaries-component.yml'), { encoding: 'utf-8' });
         const cfnComponent = new CfnComponent(this, 'binariesComponent', {
-            name: `${process.env.PROJECT_NAME}-binaries`,
+            name: `${props.projectName}-binaries`,
             changeDescription: "Installs base agents",
             platform: "Linux",
             description: "Installs base agents",
@@ -20,10 +23,9 @@ export class BinariesComponent extends Construct  {
             version: "1.0.0",
             supportedOsVersions: ["Amazon Linux 2023"],
             tags: {
-                'Name': `${process.env.PROJECT_NAME}`
-            }
-        })
-        this.arn = cfnComponent.attrArn
+                'Name': props.projectName,
+            },
+        });
+        this.arn = cfnComponent.attrArn;
     }
-    arn: string;
 }
