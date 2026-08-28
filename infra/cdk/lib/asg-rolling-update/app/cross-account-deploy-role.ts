@@ -2,8 +2,12 @@ import { AccountPrincipal, Effect, ManagedPolicy, PolicyStatement, Role } from '
 import { Construct } from 'constructs';
 import { Constants } from '../../constants';
 
+export interface CrossAccountDeployRoleProps {
+    cicdAccountId: string;
+}
+
 export class CrossAccountDeployRole extends Construct {
-    constructor(scope: Construct, id: string) {
+    constructor(scope: Construct, id: string, props: CrossAccountDeployRoleProps) {
         super(scope, id);
 
         const policy = new ManagedPolicy(this, 'Policy', {
@@ -41,7 +45,7 @@ export class CrossAccountDeployRole extends Construct {
 
         new Role(this, 'Role', {
             roleName: Constants.ASG_CROSS_ACCOUNT_ROLE_NAME,
-            assumedBy: new AccountPrincipal(process.env.CICD_ACCOUNT_ID),
+            assumedBy: new AccountPrincipal(props.cicdAccountId),
             managedPolicies: [policy],
         });
     }

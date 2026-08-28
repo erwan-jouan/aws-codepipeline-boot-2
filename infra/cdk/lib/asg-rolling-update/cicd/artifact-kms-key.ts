@@ -2,12 +2,15 @@ import { Duration, RemovalPolicy } from 'aws-cdk-lib';
 import { AccountPrincipal, Effect, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { Key } from 'aws-cdk-lib/aws-kms';
 import { Construct } from 'constructs';
-import { Constants } from '../../constants';
+
+export interface ArtifactKmsKeyProps {
+    prodAccountId: string;
+}
 
 export class ArtifactKmsKey extends Construct {
     key: Key;
 
-    constructor(scope: Construct, id: string) {
+    constructor(scope: Construct, id: string, props: ArtifactKmsKeyProps) {
         super(scope, id);
 
         this.key = new Key(this, 'Key', {
@@ -19,7 +22,7 @@ export class ArtifactKmsKey extends Construct {
 
         this.key.addToResourcePolicy(new PolicyStatement({
             effect: Effect.ALLOW,
-            principals: [new AccountPrincipal(process.env.PROD_ACCOUNT_ID)],
+            principals: [new AccountPrincipal(props.prodAccountId)],
             actions: ['kms:Decrypt', 'kms:DescribeKey'],
             resources: ['*'],
         }));

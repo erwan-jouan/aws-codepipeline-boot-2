@@ -1,31 +1,36 @@
-import { RemovalPolicy } from 'aws-cdk-lib';
 import { AccountPrincipal, Effect, PolicyDocument, PolicyStatement } from 'aws-cdk-lib/aws-iam';
 import { CfnDomain, CfnRepository } from 'aws-cdk-lib/aws-codeartifact';
 import { Construct } from 'constructs';
-import { Constants } from '../../constants';
+
+export interface CodeArtifactRepoProps {
+    projectName: string;
+    deploymentName: string;
+    prodAccountId: string;
+}
 
 export class CodeArtifactRepo extends Construct {
     readonly domainName: string;
     readonly repositoryName: string;
 
-    constructor(scope: Construct, id: string) {
+    constructor(scope: Construct, id: string, props: CodeArtifactRepoProps) {
         super(scope, id);
 
-        this.domainName = process.env.PROJECT_NAME!;
-        this.repositoryName = process.env.DEPLOYMENT_NAME!;
+        this.domainName = props.projectName;
+        this.repositoryName = props.deploymentName;
 
         const domain = new CfnDomain(this, 'Domain', {
             domainName: this.domainName,
-            // Allow PROD account to get authorization tokens and pull packages
             permissionsPolicyDocument: new PolicyDocument({
                 statements: [
                     new PolicyStatement({
                         effect: Effect.ALLOW,
-                        principals: [new AccountPrincipal(process.env.PROD_ACCOUNT_ID)],
+                        principals: [new AccountPrincipal(props.prodAccountId)],
                         actions: [
                             'codeartifact:GetAuthorizationToken',
                             'codeartifact:GetRepositoryEndpoint',
                             'codeartifact:ReadFromRepository',
+                            'codeartifact:ListPackageVersionAssets',
+                            'codeartifact:GetPackageVersionAsset',
                         ],
                         resources: ['*'],
                     }),

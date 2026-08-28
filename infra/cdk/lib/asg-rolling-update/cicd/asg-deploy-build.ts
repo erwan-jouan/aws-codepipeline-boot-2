@@ -4,18 +4,24 @@ import { Construct } from 'constructs';
 import { Constants } from '../../constants';
 import { CodeBuildRole } from './code-build-role';
 
+export interface AsgDeployBuildProps {
+    codeBuildRole: CodeBuildRole;
+    projectDeploymentName: string;
+    region: string;
+    prodAccountId: string;
+    targetArchitecture: string;
+}
+
 export class AsgDeployBuild extends Construct {
     project: PipelineProject;
 
-    constructor(scope: Construct, id: string, codeBuildRole: CodeBuildRole) {
+    constructor(scope: Construct, id: string, props: AsgDeployBuildProps) {
         super(scope, id);
 
         const logGroup = new LogGroup(this, 'LogGroup');
-        const asgName = process.env.PROJECT_DEPLOYMENT_NAME!;
-        const region = process.env.CDK_DEFAULT_REGION;
-        const crossAccountRoleArn = `arn:aws:iam::${process.env.PROD_ACCOUNT_ID}:role/${Constants.ASG_CROSS_ACCOUNT_ROLE_NAME}`;
-
-        const amiParamName = `/custom/ami/al2023/${process.env.TARGET_ARCHITECTURE}`;
+        const { projectDeploymentName, region, prodAccountId, targetArchitecture, codeBuildRole } = props;
+        const crossAccountRoleArn = `arn:aws:iam::${prodAccountId}:role/${Constants.ASG_CROSS_ACCOUNT_ROLE_NAME}`;
+        const amiParamName = `/custom/ami/al2023/${targetArchitecture}`;
 
         const buildSpec = BuildSpec.fromObject({
             version: '0.2',
@@ -35,17 +41,17 @@ export class AsgDeployBuild extends Construct {
                 build: {
                     commands: [
                         // Resolve the launch template attached to the ASG
-                        `LT_ID=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names ${asgName} --region ${region} --query 'AutoScalingGroups[0].LaunchTemplate.LaunchTemplateId' --output text)`,
+                        `LT_ID=$(aws autoscaling describe-auto-scaling-groups --auto-scaling-group-names ${projectDeploymentName} --region ${region} --query 'AutoScalingGroups[0].LaunchTemplate.LaunchTemplateId' --output text)`,
                         // Create a new launch template version with the new AMI, inheriting all other settings
                         `NEW_LT_VERSION=$(aws ec2 create-launch-template-version --launch-template-id $LT_ID --source-version '$Latest' --launch-template-data "{\\"ImageId\\":\\"$AMI_ID\\"}" --region ${region} --query 'LaunchTemplateVersion.VersionNumber' --output text)`,
                         // Set the new version as default so the ASG picks it up without needing ec2:RunInstances
                         `aws ec2 modify-launch-template --launch-template-id $LT_ID --default-version $NEW_LT_VERSION --region ${region}`,
                         // Start the refresh without --desired-configuration to avoid the ec2:RunInstances check
-                        `REFRESH_ID=$(aws autoscaling start-instance-refresh --auto-scaling-group-name ${asgName} --region ${region} --preferences '{"MinHealthyPercentage":50,"InstanceWarmup":300}' --query InstanceRefreshId --output text)`,
+                        `REFRESH_ID=$(aws autoscaling start-instance-refresh --auto-scaling-group-name ${projectDeploymentName} --region ${region} --preferences '{"MinHealthyPercentage":50,"InstanceWarmup":300}' --query InstanceRefreshId --output text)`,
                         `echo "Instance refresh started: $REFRESH_ID"`,
                         [
                             `while true; do`,
-                            `  STATUS=$(aws autoscaling describe-instance-refreshes --auto-scaling-group-name ${asgName} --region ${region} --instance-refresh-ids $REFRESH_ID --query 'InstanceRefreshes[0].Status' --output text);`,
+                            `  STATUS=$(aws autoscaling describe-instance-refreshes --auto-scaling-group-name ${projectDeploymentName} --region ${region} --instance-refresh-ids $REFRESH_ID --query 'InstanceRefreshes[0].Status' --output text);`,
                             `  echo "Refresh status: $STATUS";`,
                             `  if [ "$STATUS" = "Successful" ]; then echo "Instance refresh succeeded"; break; fi;`,
                             `  if [ "$STATUS" = "Failed" ] || [ "$STATUS" = "Cancelled" ]; then echo "Instance refresh $STATUS"; exit 1; fi;`,

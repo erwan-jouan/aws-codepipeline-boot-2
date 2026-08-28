@@ -3,10 +3,16 @@ import { Construct } from 'constructs';
 import { Constants } from '../../constants';
 import { ArtifactKmsKey } from './artifact-kms-key';
 
+export interface CodeBuildRoleProps {
+    kmsKey: ArtifactKmsKey;
+    cicdAccountId: string;
+    prodAccountId: string;
+}
+
 export class CodeBuildRole extends Construct {
     role: Role;
 
-    constructor(scope: Construct, id: string, kmsKey: ArtifactKmsKey) {
+    constructor(scope: Construct, id: string, props: CodeBuildRoleProps) {
         super(scope, id);
 
         const policy = new ManagedPolicy(this, 'Policy', {
@@ -61,20 +67,20 @@ export class CodeBuildRole extends Construct {
                         'kms:GenerateDataKey*',
                         'kms:DescribeKey',
                     ],
-                    resources: [kmsKey.key.keyArn],
+                    resources: [props.kmsKey.key.keyArn],
                 }),
                 new PolicyStatement({
                     effect: Effect.ALLOW,
                     actions: ['ssm:GetParameter'],
                     resources: [
-                        `arn:aws:ssm:*:${process.env.CICD_ACCOUNT_ID}:parameter/custom/ami/al2023/*`,
+                        `arn:aws:ssm:*:${props.cicdAccountId}:parameter/custom/ami/al2023/*`,
                     ],
                 }),
                 new PolicyStatement({
                     effect: Effect.ALLOW,
                     actions: ['sts:AssumeRole'],
                     resources: [
-                        `arn:aws:iam::${process.env.PROD_ACCOUNT_ID}:role/${Constants.ASG_CROSS_ACCOUNT_ROLE_NAME}`,
+                        `arn:aws:iam::${props.prodAccountId}:role/${Constants.ASG_CROSS_ACCOUNT_ROLE_NAME}`,
                     ],
                 }),
             ],

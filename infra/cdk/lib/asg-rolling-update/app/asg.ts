@@ -10,15 +10,25 @@ import { Constants } from '../../constants';
 import { Ec2Architecture } from '../../utils/ec2-architecture';
 import { Vpc } from './vpc';
 
+export interface AsgProps {
+    appVpc: Vpc;
+    targetGroup: ApplicationTargetGroup;
+    role: Role;
+    webappSg: SecurityGroup;
+    architecture: Ec2Architecture;
+    projectName: string;
+    deploymentName: string;
+    cicdAccountId: string;
+    projectDeploymentName: string;
+}
+
 export class Asg extends Construct {
     readonly asgName: string;
 
-    constructor(scope: Construct, id: string, appVpc: Vpc, targetGroup: ApplicationTargetGroup, role: Role, webappSg: SecurityGroup, architecture: Ec2Architecture) {
+    constructor(scope: Construct, id: string, props: AsgProps) {
         super(scope, id);
 
-        const projectName = process.env.PROJECT_NAME!;
-        const deploymentName = process.env.DEPLOYMENT_NAME!;
-        const cicdAccountId = process.env.CICD_ACCOUNT_ID;
+        const { projectName, deploymentName, cicdAccountId, projectDeploymentName, appVpc, targetGroup, role, webappSg, architecture } = props;
         const artifactDomain = projectName;
         const artifactRepo = deploymentName;
 
@@ -38,7 +48,7 @@ export class Asg extends Construct {
             role,
             securityGroup: webappSg,
             userData,
-            autoScalingGroupName: process.env.PROJECT_DEPLOYMENT_NAME,
+            autoScalingGroupName: projectDeploymentName,
             minCapacity: 2,
             maxCapacity: 4,
             healthCheck: HealthCheck.elb({ grace: Duration.minutes(5) }),
