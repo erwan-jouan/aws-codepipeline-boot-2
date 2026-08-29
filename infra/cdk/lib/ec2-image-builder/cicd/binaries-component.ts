@@ -13,7 +13,7 @@ export class BinariesComponent extends Construct {
 
     constructor(scope: Construct, id: string, props: BinariesComponentProps) {
         super(scope, id);
-        const data = fs.readFileSync(path.join('lib', 'ec2-image-builder', 'template', 'binaries-component.yml'), { encoding: 'utf-8' });
+        const data = fs.readFileSync(path.join('lib', 'ec2-image-builder', 'cicd', 'template', 'binaries-component.yml'), { encoding: 'utf-8' });
         const cfnComponent = new CfnComponent(this, 'binariesComponent', {
             name: `${props.projectName}-binaries`,
             changeDescription: "Installs base agents",

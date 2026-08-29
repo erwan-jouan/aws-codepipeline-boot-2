@@ -1,7 +1,7 @@
 import { CfnDistributionConfiguration } from "aws-cdk-lib/aws-imagebuilder";
 import { Construct } from "constructs";
-import { Constants } from "../constants";
-import { Ec2Architecture } from "../utils/ec2-architecture";
+import { Constants } from "../../constants";
+import { Ec2Architecture } from "../../utils/ec2-architecture";
 
 export interface DistributionConfigurationProps {
     architecture: Ec2Architecture;

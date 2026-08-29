@@ -2,7 +2,7 @@ import * as cdk from "aws-cdk-lib";
 import * as ssm from 'aws-cdk-lib/aws-ssm';
 import { CfnImageRecipe } from "aws-cdk-lib/aws-imagebuilder";
 import { Construct } from "constructs";
-import { Ec2Architecture } from "../utils/ec2-architecture";
+import { Ec2Architecture } from "../../utils/ec2-architecture";
 
 export interface ImageRecipeProps {
     binaryComponentArn: string;

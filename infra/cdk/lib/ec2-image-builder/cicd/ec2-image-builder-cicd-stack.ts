@@ -10,7 +10,7 @@ import { DistributionConfiguration } from './distribution-configuration';
 import { ImagePipeline } from './image-pipeline';
 import { Ec2Image } from './ec2-Image';
 import { ParameterStoreUpdater } from './parameter-store-updater';
-import { Ec2Architecture } from '../utils/ec2-architecture';
+import { Ec2Architecture } from '../../utils/ec2-architecture';
 
 export interface CdkStackProps extends cdk.StackProps {
     projectName: string;
@@ -19,7 +19,7 @@ export interface CdkStackProps extends cdk.StackProps {
     region: string;
 }
 
-export class CdkStack extends cdk.Stack {
+export class Ec2ImageBuilderCicdStack extends cdk.Stack {
 
     constructor(scope: Construct, id: string, props: CdkStackProps) {
         super(scope, id, props);
@@ -98,7 +98,7 @@ export class CdkStack extends cdk.Stack {
         const ec2Image = new Ec2Image(this, 'ec2Image', imageRecipe.arn, distributionConfiguration.arn, infrastructureConfiguration.arn);
         ec2Image.node.addDependency(cloudwatchAgentConfig);
 
-        const resource = new ParameterStoreUpdater(this, 'ParameterStoreUpdater', ec2Image.amiId, architecture);
+        const resource = new ParameterStoreUpdater(this, 'ParameterStoreUpdater', ec2Image.amiId, architecture, prodAccountId);
 
         new cdk.CfnOutput(this, 'ResponseMessage', {
             description: 'The message that came back from the Custom Resource',

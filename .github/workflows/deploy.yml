@@ -64,14 +64,12 @@ jobs:
         run: npm install -g aws-cdk
 
       - name: Configure AWS credentials (PROD account)
-        if: inputs.deployment_name != 'ec2-image-builder'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_PROD_ACCOUNT_ID }}:role/${{ env.ROLE_NAME }}
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Deploy app stack
-        if: inputs.deployment_name != 'ec2-image-builder'
         working-directory: infra/cdk
         run: |
           cdk deploy \

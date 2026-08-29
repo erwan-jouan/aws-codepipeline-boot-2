@@ -13,7 +13,7 @@ export class ConfigComponent extends Construct {
 
     constructor(scope: Construct, id: string, props: ConfigComponentProps) {
         super(scope, id);
-        const data = fs.readFileSync(path.join('lib', 'ec2-image-builder', 'template', 'config-component.yml'), { encoding: 'utf-8' });
+        const data = fs.readFileSync(path.join('lib', 'ec2-image-builder', 'cicd', 'template', 'config-component.yml'), { encoding: 'utf-8' });
         const cfnComponent = new CfnComponent(this, 'configComponent', {
             name: `${props.projectName}-config`,
             changeDescription: "Installs base agents configuration",

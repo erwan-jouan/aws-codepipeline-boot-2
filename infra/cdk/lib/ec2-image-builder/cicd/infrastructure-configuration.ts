@@ -2,7 +2,7 @@ import { Duration } from "aws-cdk-lib";
 import { CfnInfrastructureConfiguration } from "aws-cdk-lib/aws-imagebuilder";
 import { Bucket } from "aws-cdk-lib/aws-s3";
 import { Construct } from "constructs";
-import { Ec2Architecture } from "../utils/ec2-architecture";
+import { Ec2Architecture } from "../../utils/ec2-architecture";
 
 export interface InfrastructureConfigurationProps {
     instanceProfileName: string;
