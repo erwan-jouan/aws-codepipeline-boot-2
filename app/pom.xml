@@ -15,7 +15,7 @@
     <name>aws-dev-spring-boot-jar</name>
     <description>Demo project for Spring Boot</description>
 
-    <artifactId>aws-codepipeline-boot</artifactId>
+    <artifactId>aws-codepipeline-boot-2</artifactId>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
