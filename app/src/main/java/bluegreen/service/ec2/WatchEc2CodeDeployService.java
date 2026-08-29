@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 
 import static bluegreen.model.Constant.ASG_CODE_DEPLOY_EC2_PROFILE;
 import static bluegreen.model.Constant.ID;
+import static bluegreen.model.Constant.PROJECT_NAME;
 
 @Service
 @Profile(ASG_CODE_DEPLOY_EC2_PROFILE)
@@ -146,7 +147,7 @@ public class WatchEc2CodeDeployService implements WatchAwsService<CodeDeployCont
 
     private String getProjectDeploymentName() {
         final String activeProfile = this.getActiveProfile();
-        return String.format("aws-codepipeline-boot-%s", activeProfile);
+        return String.format("%s-%s", PROJECT_NAME, activeProfile);
     }
 
     private String getActiveProfile() {

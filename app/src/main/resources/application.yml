@@ -7,10 +7,6 @@ server:
     include-stacktrace: always
     include-exception: true
 
-spring:
-  autoconfigure:
-    exclude:
-      - org.springframework.cloud.function.serverless.web.ServerlessAutoConfiguration
 
 management:
   endpoints:

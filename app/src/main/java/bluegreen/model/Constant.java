@@ -5,6 +5,7 @@ public final class Constant {
         throw new IllegalStateException("Utility class");
     }
 
+    public static final String PROJECT_NAME = "aws-codepipeline-boot-2";
     public static final String ALB_ECS_FARGATE_PROFILE = "alb-ecs-fargate";
     public static final String ALB_ECS_EC2_PROFILE = "alb-ecs-ec2";
     public static final String ASG_CODE_DEPLOY_EC2_PROFILE = "asg-codedeploy-ec2";

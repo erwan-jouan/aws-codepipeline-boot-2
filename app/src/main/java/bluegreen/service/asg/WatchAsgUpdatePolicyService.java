@@ -21,6 +21,7 @@ import software.amazon.awssdk.services.codedeploy.model.GetDeploymentGroupRespon
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ec2.model.DescribeInstancesRequest;
 import software.amazon.awssdk.services.ec2.model.DescribeInstancesResponse;
+import software.amazon.awssdk.core.exception.SdkException;
 import software.amazon.awssdk.services.ec2.model.Ec2Exception;
 import software.amazon.awssdk.services.ec2.model.Filter;
 import software.amazon.awssdk.services.ec2.model.Instance;
@@ -42,6 +43,7 @@ import static bluegreen.model.Constant.ASG_LIFECYCLE_HOOK_PROFILE;
 import static bluegreen.model.Constant.ASG_ROLLING_UPDATE_PROFILE;
 import static bluegreen.model.Constant.CLOUDFRONT_PROFILE;
 import static bluegreen.model.Constant.ID;
+import static bluegreen.model.Constant.PROJECT_NAME;
 
 @Service
 @Profile({ASG_ROLLING_UPDATE_PROFILE, ASG_LIFECYCLE_HOOK_PROFILE, CLOUDFRONT_PROFILE, ASG_EC2_IMAGE_BUILDER_PROFILE})
@@ -112,9 +114,17 @@ public class WatchAsgUpdatePolicyService implements WatchAwsService<Ec2ControlDt
                     .build();
         } catch (final Ec2Exception ec2Exception) {
             System.err.println(ec2Exception.awsErrorDetails().errorCode());
-            return Ec2ControlDto.builder().build();
+            return emptyDto();
+        } catch (final SdkException e) {
+            System.err.println(e.getMessage());
+            return emptyDto();
         }
 
+    }
+
+    private Ec2ControlDto emptyDto() {
+        final ControlTable empty = ControlTable.builder().headers(HEADERS).rows(List.of()).build();
+        return Ec2ControlDto.builder().instanceInfo(this.instanceInfo).controlTable(empty).events(List.of()).build();
     }
 
     private static final DateTimeFormatter ACTIVITY_FMT =
@@ -139,7 +149,7 @@ public class WatchAsgUpdatePolicyService implements WatchAwsService<Ec2ControlDt
         String nextToken = null;
         do {
             final Filter filter = Filter.builder()
-                    .name("tag:ProjectDeploymentName")
+                    .name("tag:aws:autoscaling:groupName")
                     .values(this.getProjectDeploymentName())
                     .build();
             final DescribeInstancesRequest request = DescribeInstancesRequest.builder()
@@ -178,7 +188,7 @@ public class WatchAsgUpdatePolicyService implements WatchAwsService<Ec2ControlDt
 
     private String getProjectDeploymentName() {
         final String activeProfile = this.getActiveProfile();
-        return String.format("aws-codepipeline-boot-%s", activeProfile);
+        return String.format("%s-%s", PROJECT_NAME, activeProfile);
     }
 
     private String getActiveProfile() {
