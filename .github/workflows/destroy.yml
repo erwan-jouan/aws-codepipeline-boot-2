@@ -19,7 +19,7 @@ permissions:
 
 env:
   ROLE_NAME: GitHubActionsRole
-  AWS_REGION: ${{ secrets.AWS_REGION }}
+  AWS_REGION: ${{ vars.AWS_REGION }}
   CICD_ACCOUNT_ID: ${{ secrets.AWS_CICD_ACCOUNT_ID }}
   PROD_ACCOUNT_ID: ${{ secrets.AWS_PROD_ACCOUNT_ID }}
   AWS_ORGANIZATION_ID: ${{ secrets.AWS_ORGANIZATION_ID }}
@@ -67,7 +67,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_CICD_ACCOUNT_ID }}:role/${{ env.ROLE_NAME }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Destroy cicd stack
         working-directory: infra/cdk
@@ -83,7 +83,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: arn:aws:iam::${{ secrets.AWS_PROD_ACCOUNT_ID }}:role/${{ env.ROLE_NAME }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ vars.AWS_REGION }}
 
       - name: Destroy app stack
         if: inputs.deployment_name != 'ec2-image-builder'
