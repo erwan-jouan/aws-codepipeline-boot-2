@@ -67,11 +67,10 @@
 
             if (inst.isCurrent) {
                 lines.push('    TG ==>|"this request"| ' + nodeId + '["' + label + '"]');
-                styleLines.push('    style ' + nodeId + ' fill:#ff9900,stroke:' + color + ',stroke-width:4px,color:#000,font-weight:bold');
-                styleLines.push('    linkStyle ' + edgeIndex + ' stroke:#ff9900,stroke-width:3px');
+                styleLines.push('    style ' + nodeId + ' fill:' + color + ',stroke:' + color + ',color:#fff,font-weight:bold');
+                styleLines.push('    linkStyle ' + edgeIndex + ' stroke:' + color + ',stroke-width:3px');
             } else {
                 lines.push('    TG --> ' + nodeId + '["' + label + '"]');
-                styleLines.push('    style ' + nodeId + ' fill:' + color + ',stroke:#888,color:#fff');
             }
             edgeIndex++;
         });
