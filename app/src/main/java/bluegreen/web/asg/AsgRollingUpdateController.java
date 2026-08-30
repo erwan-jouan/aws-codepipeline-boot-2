@@ -53,6 +53,7 @@ public class AsgRollingUpdateController extends AbstractBlueGreenController {
         result.put("instanceId", dto.getInstanceInfo() != null ? dto.getInstanceInfo().getInstanceId() : "unknown");
         result.put("instances", instances);
         result.put("events", dto.getEvents() != null ? dto.getEvents() : List.of());
+        result.put("color", this.color);
         return result;
     }
 

@@ -40,7 +40,7 @@
 
     let svgCounter = 0;
 
-    function buildDiagram(instances) {
+    function buildDiagram(instances, color) {
         const lines = [
             'graph LR',
             '    User(["🌐 User"])',
@@ -67,10 +67,11 @@
 
             if (inst.isCurrent) {
                 lines.push('    TG ==>|"this request"| ' + nodeId + '["' + label + '"]');
-                styleLines.push('    style ' + nodeId + ' fill:#ff9900,stroke:#e07000,color:#000,font-weight:bold');
+                styleLines.push('    style ' + nodeId + ' fill:#ff9900,stroke:' + color + ',stroke-width:4px,color:#000,font-weight:bold');
                 styleLines.push('    linkStyle ' + edgeIndex + ' stroke:#ff9900,stroke-width:3px');
             } else {
                 lines.push('    TG --> ' + nodeId + '["' + label + '"]');
+                styleLines.push('    style ' + nodeId + ' fill:' + color + ',stroke:#888,color:#fff');
             }
             edgeIndex++;
         });
@@ -79,10 +80,10 @@
         return lines.join('\n');
     }
 
-    async function renderDiagram(instances) {
+    async function renderDiagram(instances, color) {
         const container = document.getElementById('diagram-container');
         const id = 'svg-' + (++svgCounter);
-        const { svg } = await mermaid.render(id, buildDiagram(instances));
+        const { svg } = await mermaid.render(id, buildDiagram(instances, color));
         container.innerHTML = svg;
     }
 
@@ -91,7 +92,7 @@
             const resp = await fetch('/asg-rolling-update/data');
             const data = await resp.json();
             document.getElementById('instance-id').textContent = data.instanceId;
-            await renderDiagram(data.instances);
+            await renderDiagram(data.instances, data.color);
             const eventsList = document.getElementById('events-list');
             eventsList.innerHTML = (data.events || []).map(function(e) {
                 return '<li>' + e.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</li>';
@@ -117,7 +118,8 @@
             elbHc: String(row['ElbHc'] || '')
         };
     });
-    renderDiagram(initialInstances).then(function() { setTimeout(scheduleRefresh, 3000); });
+    const initialColor = /*[[${color}]]*/ '#888888';
+    renderDiagram(initialInstances, initialColor).then(function() { setTimeout(scheduleRefresh, 3000); });
     /*]]>*/
 </script>
 
