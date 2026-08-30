@@ -6,7 +6,7 @@ import { Construct } from 'constructs';
 import fs = require('fs');
 import { Effect, ManagedPolicy, PolicyStatement, Role, ServicePrincipal } from 'aws-cdk-lib/aws-iam';
 import { Ec2Architecture } from '../../utils/ec2-architecture';
-import { AMI_SSM_WRITER_ROLE_NAME } from '../app/ec2-image-builder-app-stack';
+import { AMI_SSM_WRITER_ROLE_NAME } from '../app/cdk-stack';
 const path = require('path');
 
 export class ParameterStoreUpdater extends Construct {

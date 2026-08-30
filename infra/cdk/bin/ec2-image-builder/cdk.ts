@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
-import { Ec2ImageBuilderCicdStack } from '../../lib/ec2-image-builder/cicd/ec2-image-builder-cicd-stack';
-import { Ec2ImageBuilderAppStack } from '../../lib/ec2-image-builder/app/ec2-image-builder-app-stack';
+import { Ec2ImageBuilderCicdStack } from '../../lib/ec2-image-builder/cicd/cdk-stack';
+import { Ec2ImageBuilderAppStack } from '../../lib/ec2-image-builder/app/cdk-stack';
 
 const app = new cdk.App();
 

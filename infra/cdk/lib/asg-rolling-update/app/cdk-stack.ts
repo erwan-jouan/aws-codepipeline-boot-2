@@ -1,5 +1,5 @@
 import * as cdk from 'aws-cdk-lib';
-import { Stack } from 'aws-cdk-lib';
+import { CfnOutput, Stack } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { Alb } from './alb';
 import { Asg } from './asg';
@@ -37,5 +37,10 @@ export class AsgRollingAppStack extends Stack {
             projectDeploymentName: props.projectDeploymentName,
         });
         new CrossAccountDeployRole(this, 'crossAccountDeployRole', { cicdAccountId: props.cicdAccountId });
+
+        new CfnOutput(this, 'AppUrl', {
+            value: `http://${alb.dnsName}/${props.deploymentName}`,
+            description: 'Application URL',
+        });
     }
 }

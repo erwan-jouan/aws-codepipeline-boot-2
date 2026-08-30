@@ -7,6 +7,7 @@ import { Vpc } from './vpc';
 export class Alb extends Construct {
     readonly targetGroup: ApplicationTargetGroup;
     readonly securityGroup: SecurityGroup;
+    readonly dnsName: string;
 
     constructor(scope: Construct, id: string, appVpc: Vpc) {
         super(scope, id);
@@ -42,5 +43,7 @@ export class Alb extends Construct {
             port: 80,
             defaultTargetGroups: [this.targetGroup],
         });
+
+        this.dnsName = alb.loadBalancerDnsName;
     }
 }

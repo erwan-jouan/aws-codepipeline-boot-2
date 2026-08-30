@@ -78,6 +78,13 @@ jobs:
             ${{ inputs.deployment_name }}-app \
             --exclusively
 
+      - name: Show app stack outputs
+        run: |
+          aws cloudformation describe-stacks \
+            --stack-name ${{ inputs.deployment_name }}-app \
+            --query 'Stacks[0].Outputs' \
+            --output table
+
       - name: Configure AWS credentials (CICD account)
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -92,3 +99,10 @@ jobs:
             --require-approval never \
             ${{ inputs.deployment_name }}-cicd \
             --exclusively
+
+      - name: Show cicd stack outputs
+        run: |
+          aws cloudformation describe-stacks \
+            --stack-name ${{ inputs.deployment_name }}-cicd \
+            --query 'Stacks[0].Outputs' \
+            --output table
