@@ -83,7 +83,7 @@ jobs:
           aws cloudformation describe-stacks \
             --stack-name ${{ inputs.deployment_name }}-app \
             --query 'Stacks[0].Outputs' \
-            --output table
+            --output json
 
       - name: Configure AWS credentials (CICD account)
         uses: aws-actions/configure-aws-credentials@v4
@@ -105,4 +105,4 @@ jobs:
           aws cloudformation describe-stacks \
             --stack-name ${{ inputs.deployment_name }}-cicd \
             --query 'Stacks[0].Outputs' \
-            --output table
+            --output json
