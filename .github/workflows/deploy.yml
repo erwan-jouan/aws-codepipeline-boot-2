@@ -12,6 +12,7 @@ on:
           - alb-ecs-fargate
           - asg-rolling-update
           - ec2-image-builder
+          - eks-fargate
 
 permissions:
   id-token: write

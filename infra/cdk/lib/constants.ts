@@ -4,4 +4,5 @@ export abstract class Constants {
     static readonly ARTIFACT_NAME = "app.jar"
     static readonly FARGATE_CROSS_ACCOUNT_ROLE_NAME = 'fargate-cross-account-deploy-role'
     static readonly ASG_CROSS_ACCOUNT_ROLE_NAME = 'asg-rolling-cross-account-deploy-role'
+    static readonly EKS_CROSS_ACCOUNT_ROLE_NAME = 'eks-fargate-cross-account-deploy-role'
   }
