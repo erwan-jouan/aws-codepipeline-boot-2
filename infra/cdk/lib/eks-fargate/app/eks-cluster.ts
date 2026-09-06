@@ -1,7 +1,7 @@
 import * as eks from 'aws-cdk-lib/aws-eks';
 import * as iam from 'aws-cdk-lib/aws-iam';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
-import { Stack } from 'aws-cdk-lib';
+import { RemovalPolicy, Stack } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { KubectlV36Layer } from '@aws-cdk/lambda-layer-kubectl-v36';
 
@@ -260,10 +260,17 @@ export class EksCluster extends Construct {
     }
 
     private setupAppManifests(lbController: eks.HelmChart): void {
-        const ns = this.cluster.addManifest('AppNamespace', {
-            apiVersion: 'v1',
-            kind: 'Namespace',
-            metadata: { name: clusterName },
+        // RemovalPolicy.RETAIN skips kubectl delete namespace on stack teardown.
+        // The Ingress ALB finalizer causes namespace deletion to hang until CloudFormation
+        // times out; the cluster deletion cleans up all in-cluster resources anyway.
+        const ns = new eks.KubernetesManifest(this, 'AppNamespace', {
+            cluster: this.cluster,
+            manifest: [{
+                apiVersion: 'v1',
+                kind: 'Namespace',
+                metadata: { name: clusterName },
+            }],
+            removalPolicy: RemovalPolicy.RETAIN,
         });
 
         // NodePort service: ALB routes to pods via IP target type, port 8080
