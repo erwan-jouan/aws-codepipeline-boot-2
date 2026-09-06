@@ -33,6 +33,7 @@ export class EksDeployBuild extends Construct {
             '      labels:',
             `        app.kubernetes.io/name: app-${clusterName}`,
             '    spec:',
+            '      serviceAccountName: app-sa',
             '      containers:',
             `        - name: app-${clusterName}`,
             '          image: IMAGE_PLACEHOLDER',

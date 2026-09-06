@@ -278,6 +278,19 @@ export class EksCluster extends Construct {
             removalPolicy: RemovalPolicy.RETAIN,
         });
 
+        // IRSA service account — gives pods AWS credentials to call ssm:GetParameter
+        const appSA = this.cluster.addServiceAccount('AppSA', {
+            name: 'app-sa',
+            namespace: clusterName,
+        });
+        appSA.addToPrincipalPolicy(new iam.PolicyStatement({
+            actions: ['ssm:GetParameter'],
+            resources: [
+                `arn:aws:ssm:${Stack.of(this).region}:${Stack.of(this).account}:parameter/custom/stress`,
+            ],
+        }));
+        appSA.node.addDependency(ns);
+
         // NodePort service: ALB routes to pods via IP target type, port 8080
         const service = this.cluster.addManifest('AppService', {
             apiVersion: 'v1',
