@@ -24,6 +24,11 @@ export class SgCleanup extends Construct {
 
         fn.addToRolePolicy(new iam.PolicyStatement({
             actions: [
+                'elasticloadbalancing:DescribeLoadBalancers',
+                'elasticloadbalancing:DescribeTags',
+                'elasticloadbalancing:DeleteLoadBalancer',
+                'elasticloadbalancing:DescribeTargetGroups',
+                'elasticloadbalancing:DeleteTargetGroup',
                 'ec2:DescribeSecurityGroups',
                 'ec2:DescribeSecurityGroupRules',
                 'ec2:RevokeSecurityGroupIngress',

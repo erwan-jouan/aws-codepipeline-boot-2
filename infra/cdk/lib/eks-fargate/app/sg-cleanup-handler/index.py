@@ -1,11 +1,53 @@
 import boto3
 import logging
-import os
+import time
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 ec2 = boto3.client('ec2')
+elbv2 = boto3.client('elbv2')
+
+
+def _tagged_with_cluster(resource_arns, cluster_name):
+    """Return the subset of ARNs whose elbv2.k8s.aws/cluster tag matches cluster_name."""
+    if not resource_arns:
+        return []
+    tags_resp = elbv2.describe_tags(ResourceArns=resource_arns)
+    matched = []
+    for desc in tags_resp['TagDescriptions']:
+        tags = {t['Key']: t['Value'] for t in desc['Tags']}
+        if tags.get('elbv2.k8s.aws/cluster') == cluster_name:
+            matched.append(desc['ResourceArn'])
+    return matched
+
+
+def delete_load_balancers(cluster_name):
+    all_lbs = elbv2.describe_load_balancers()['LoadBalancers']
+    all_arns = [lb['LoadBalancerArn'] for lb in all_lbs]
+    to_delete = _tagged_with_cluster(all_arns, cluster_name)
+    for arn in to_delete:
+        try:
+            elbv2.delete_load_balancer(LoadBalancerArn=arn)
+            logger.info('Deleted load balancer %s', arn)
+        except Exception as e:
+            logger.warning('Error deleting LB %s: %s', arn, e)
+    if to_delete:
+        waiter = elbv2.get_waiter('load_balancers_deleted')
+        waiter.wait(LoadBalancerArns=to_delete)
+        logger.info('All load balancers confirmed deleted')
+
+
+def delete_target_groups(cluster_name):
+    all_tgs = elbv2.describe_target_groups()['TargetGroups']
+    all_arns = [tg['TargetGroupArn'] for tg in all_tgs]
+    to_delete = _tagged_with_cluster(all_arns, cluster_name)
+    for arn in to_delete:
+        try:
+            elbv2.delete_target_group(TargetGroupArn=arn)
+            logger.info('Deleted target group %s', arn)
+        except Exception as e:
+            logger.warning('Error deleting TG %s: %s', arn, e)
 
 
 def remove_load_balancer_sg_rule(cluster_name):
@@ -63,6 +105,8 @@ def handler(event, context):
     logger.info('Event: %s', event)
     cluster_name = event['ResourceProperties']['ClusterName']
     if event['RequestType'] == 'Delete':
+        delete_load_balancers(cluster_name)   # waits for deletion to complete
+        delete_target_groups(cluster_name)
         remove_load_balancer_sg_rule(cluster_name)
         purge_alb_security_groups(cluster_name)
     return {'PhysicalResourceId': 'sg-cleanup-' + cluster_name}

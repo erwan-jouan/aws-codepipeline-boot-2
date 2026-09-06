@@ -339,8 +339,19 @@ export class EksCluster extends Construct {
             },
         });
         ingress.node.addDependency(ns);
-        // The ingress must be deleted before the LB controller is removed, otherwise the ALB
-        // finalizer never gets processed and the CloudFormation custom resource hangs forever.
         ingress.node.addDependency(lbController);
+
+        // On delete: patch is deleted FIRST (removes finalizer), ingress manifest SECOND
+        // (kubectl delete returns immediately — no finalizer to block it).
+        // The ALB left behind is cleaned up by the SgCleanup custom resource.
+        const ingressFinalizerPatch = new eks.KubernetesPatch(this, 'IngressFinalizerPatch', {
+            cluster: this.cluster,
+            resourceName: `ingress/ingress-${clusterName}`,
+            resourceNamespace: clusterName,
+            applyPatch: {},
+            restorePatch: { metadata: { finalizers: [] } },
+            patchType: eks.PatchType.MERGE,
+        });
+        ingressFinalizerPatch.node.addDependency(ingress);
     }
 }
