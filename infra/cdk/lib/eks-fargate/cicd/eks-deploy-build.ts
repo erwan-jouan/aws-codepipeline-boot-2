@@ -43,6 +43,8 @@ export class EksDeployBuild extends Construct {
             `              value: "${deploymentName}"`,
             '            - name: PROJECT_DEPLOYMENT_NAME',
             `              value: "${clusterName}"`,
+            '            - name: AWS_DEFAULT_REGION',
+            `              value: "${region}"`,
             '          resources:',
             '            limits:',
             '              cpu: 500m',
