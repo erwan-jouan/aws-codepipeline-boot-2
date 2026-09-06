@@ -4,6 +4,7 @@ import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import { RemovalPolicy, Stack } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import { KubectlV36Layer } from '@aws-cdk/lambda-layer-kubectl-v36';
+import { SgCleanup } from './sg-cleanup';
 
 const clusterName = process.env.PROJECT_DEPLOYMENT_NAME!;
 
@@ -30,6 +31,8 @@ export class EksCluster extends Construct {
         this.cluster.addFargateProfile('AppProfile', {
             selectors: [{ namespace: clusterName }],
         });
+
+        new SgCleanup(this, 'SgCleanup', { vpc, clusterName });
 
         const lbController = this.setupLbController(vpc);
         this.setupAppManifests(lbController);
