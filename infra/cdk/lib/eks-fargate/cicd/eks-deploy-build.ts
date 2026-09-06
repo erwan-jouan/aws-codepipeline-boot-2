@@ -71,8 +71,7 @@ export class EksDeployBuild extends Construct {
             phases: {
                 install: {
                     commands: [
-                        // Install kubectl matching the cluster version
-                        'curl -LO https://dl.k8s.io/release/v1.29.0/bin/linux/amd64/kubectl',
+                        'curl -LO https://dl.k8s.io/release/v1.36.0/bin/linux/amd64/kubectl',
                         'chmod +x kubectl && mv kubectl /usr/local/bin/',
                         'kubectl version --client',
                     ],
@@ -95,6 +94,19 @@ export class EksDeployBuild extends Construct {
                         'sed -i "s|IMAGE_PLACEHOLDER|${IMAGE_URI}|" /tmp/deployment.yaml',
                         'kubectl apply -f /tmp/deployment.yaml',
                         `kubectl rollout status deployment/deployment-${clusterName} -n ${clusterName} --timeout=300s`,
+                    ],
+                },
+                post_build: {
+                    commands: [
+                        // Always dump pod state — critical for diagnosing rollout failures
+                        `echo "=== Pod status ==="`,
+                        `kubectl get pods -n ${clusterName} -o wide`,
+                        `echo "=== Pod descriptions ==="`,
+                        `kubectl describe pods -n ${clusterName} -l app.kubernetes.io/name=app-${clusterName}`,
+                        `echo "=== Application logs ==="`,
+                        `kubectl logs -n ${clusterName} -l app.kubernetes.io/name=app-${clusterName} --all-containers --tail=200 --prefix || true`,
+                        `echo "=== Previous container logs (if any restart) ==="`,
+                        `kubectl logs -n ${clusterName} -l app.kubernetes.io/name=app-${clusterName} --all-containers --previous --tail=100 --prefix 2>/dev/null || true`,
                     ],
                 },
             },

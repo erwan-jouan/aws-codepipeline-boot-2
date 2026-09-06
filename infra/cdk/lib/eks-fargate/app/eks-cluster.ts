@@ -31,11 +31,11 @@ export class EksCluster extends Construct {
             selectors: [{ namespace: clusterName }],
         });
 
-        this.setupLbController(vpc);
-        this.setupAppManifests();
+        const lbController = this.setupLbController(vpc);
+        this.setupAppManifests(lbController);
     }
 
-    private setupLbController(vpc: ec2.Vpc): void {
+    private setupLbController(vpc: ec2.Vpc): eks.HelmChart {
         const region = Stack.of(this).region;
 
         // IRSA: CDK creates an OIDC-federated IAM role bound to this Kubernetes ServiceAccount
@@ -256,9 +256,10 @@ export class EksCluster extends Construct {
             },
         });
         lbController.node.addDependency(lbControllerSA);
+        return lbController;
     }
 
-    private setupAppManifests(): void {
+    private setupAppManifests(lbController: eks.HelmChart): void {
         const ns = this.cluster.addManifest('AppNamespace', {
             apiVersion: 'v1',
             kind: 'Namespace',
@@ -313,7 +314,8 @@ export class EksCluster extends Construct {
             },
         });
         ingress.node.addDependency(ns);
-        // Ingress depends on LB controller being ready — the HelmChart dependency chain handles this
-        // via the AppNamespace → lbController ordering in the cluster manifest graph
+        // The ingress must be deleted before the LB controller is removed, otherwise the ALB
+        // finalizer never gets processed and the CloudFormation custom resource hangs forever.
+        ingress.node.addDependency(lbController);
     }
 }
