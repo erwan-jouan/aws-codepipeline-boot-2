@@ -3,6 +3,7 @@ import * as iam from 'aws-cdk-lib/aws-iam';
 import * as ec2 from 'aws-cdk-lib/aws-ec2';
 import { Stack } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
+import { KubectlV36Layer } from '@aws-cdk/lambda-layer-kubectl-v36';
 
 const clusterName = process.env.PROJECT_DEPLOYMENT_NAME!;
 
@@ -19,7 +20,8 @@ export class EksCluster extends Construct {
 
         this.cluster = new eks.FargateCluster(this, 'Cluster', {
             clusterName,
-            version: eks.KubernetesVersion.V1_29,
+            version: eks.KubernetesVersion.V1_36,
+            kubectlLayer: new KubectlV36Layer(this, 'KubectlLayer'),
             vpc,
             endpointAccess: eks.EndpointAccess.PUBLIC_AND_PRIVATE,
         });
