@@ -375,5 +375,14 @@ export class EksCluster extends Construct {
             patchType: eks.PatchType.MERGE,
         });
         ingressFinalizerPatch.node.addDependency(ingress);
+
+        // RBAC: grant eks-console-viewers group cluster-wide read access for EKS console visibility
+        this.cluster.addManifest('ConsoleViewerBinding', {
+            apiVersion: 'rbac.authorization.k8s.io/v1',
+            kind: 'ClusterRoleBinding',
+            metadata: { name: 'eks-console-viewers' },
+            subjects: [{ kind: 'Group', name: 'eks-console-viewers', apiGroup: 'rbac.authorization.k8s.io' }],
+            roleRef: { kind: 'ClusterRole', name: 'view', apiGroup: 'rbac.authorization.k8s.io' },
+        });
     }
 }

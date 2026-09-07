@@ -19,7 +19,7 @@ export class SgCleanup extends Construct {
             runtime: lambda.Runtime.PYTHON_3_12,
             handler: 'index.handler',
             code: lambda.Code.fromAsset(path.join(__dirname, 'sg-cleanup-handler')),
-            timeout: cdk.Duration.minutes(5),
+            timeout: cdk.Duration.minutes(10),
         });
 
         fn.addToRolePolicy(new iam.PolicyStatement({
@@ -34,6 +34,8 @@ export class SgCleanup extends Construct {
                 'ec2:RevokeSecurityGroupIngress',
                 'ec2:RevokeSecurityGroupEgress',
                 'ec2:DeleteSecurityGroup',
+                'ec2:DescribeNetworkInterfaces',
+                'ec2:ModifyNetworkInterfaceAttribute',
             ],
             resources: ['*'],
         }));

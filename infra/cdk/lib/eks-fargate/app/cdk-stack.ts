@@ -1,6 +1,7 @@
 import { Stack } from 'aws-cdk-lib';
 import { Construct } from 'constructs';
 import * as cdk from 'aws-cdk-lib';
+import * as iam from 'aws-cdk-lib/aws-iam';
 import { EksCluster } from './eks-cluster';
 import { CrossAccountDeployRole } from './cross-account-deploy-role';
 import { StressParameter } from './stress-parameter';
@@ -16,6 +17,16 @@ export class EksFargateAppStack extends Stack {
         eksCluster.cluster.awsAuth.addRoleMapping(crossAccountDeployRole.role, {
             groups: ['system:masters'],
         });
+
+        // Grant SSO console role membership in eks-console-viewers Kubernetes group,
+        // which is bound to the built-in view ClusterRole by the ConsoleViewerBinding manifest.
+        const consoleRoleArn = process.env.AWS_EKS_CONSOLE_ROLE_ARN;
+        if (consoleRoleArn) {
+            eksCluster.cluster.awsAuth.addRoleMapping(
+                iam.Role.fromRoleArn(this, 'SsoConsoleRole', consoleRoleArn, { mutable: false }),
+                { groups: ['eks-console-viewers'], username: 'erwan.jouan@theatomicity.com' },
+            );
+        }
 
         new StressParameter(this, 'stressParameter');
     }
