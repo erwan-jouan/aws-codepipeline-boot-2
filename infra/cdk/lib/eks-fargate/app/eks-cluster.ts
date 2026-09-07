@@ -291,6 +291,28 @@ export class EksCluster extends Construct {
         }));
         appSA.node.addDependency(ns);
 
+        // RBAC: allow app-sa to list/get pods in its namespace (used by WatchEksService)
+        const appRole = this.cluster.addManifest('AppRole', {
+            apiVersion: 'rbac.authorization.k8s.io/v1',
+            kind: 'Role',
+            metadata: { name: 'app-pod-reader', namespace: clusterName },
+            rules: [{
+                apiGroups: [''],
+                resources: ['pods'],
+                verbs: ['get', 'list'],
+            }],
+        });
+        appRole.node.addDependency(ns);
+
+        const appRoleBinding = this.cluster.addManifest('AppRoleBinding', {
+            apiVersion: 'rbac.authorization.k8s.io/v1',
+            kind: 'RoleBinding',
+            metadata: { name: 'app-pod-reader-binding', namespace: clusterName },
+            subjects: [{ kind: 'ServiceAccount', name: 'app-sa', namespace: clusterName }],
+            roleRef: { kind: 'Role', name: 'app-pod-reader', apiGroup: 'rbac.authorization.k8s.io' },
+        });
+        appRoleBinding.node.addDependency(appRole);
+
         // NodePort service: ALB routes to pods via IP target type, port 8080
         const service = this.cluster.addManifest('AppService', {
             apiVersion: 'v1',
