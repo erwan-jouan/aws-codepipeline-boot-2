@@ -52,7 +52,7 @@ def delete_load_balancers(cluster_name):
             logger.warning('Error deleting LB %s: %s', arn, e)
     if to_delete:
         waiter = elbv2.get_waiter('load_balancers_deleted')
-        waiter.wait(LoadBalancerArns=to_delete)
+        waiter.wait(LoadBalancerArns=to_delete, WaiterConfig={'Delay': 15, 'MaxAttempts': 8})
         logger.info('All load balancers confirmed deleted')
 
 
@@ -123,31 +123,30 @@ def remove_external_references(alb_sg_ids):
             logger.warning('Error removing egress references to %s: %s', sg_id, e)
 
 
-def detach_from_enis(alb_sg_ids):
-    """Remove ALB SGs from any ENI that still has them attached (e.g. Fargate pod ENIs).
+def wait_for_eni_release(alb_sg_ids, max_wait=600):
+    """Poll until no ENIs reference any ALB SG, or until max_wait seconds elapse.
 
-    The LB controller attaches the backend SG to pod ENIs for target routing.
-    Those ENIs outlive the ALB deletion and block SG cleanup.
+    Fargate-managed ENIs cannot be modified externally (AuthFailure), so we wait
+    for the Fargate pods to terminate and release the ENIs naturally.
     """
-    for sg_id in alb_sg_ids:
-        try:
+    deadline = time.time() + max_wait
+    while time.time() < deadline:
+        blocking = []
+        for sg_id in alb_sg_ids:
             enis = ec2.describe_network_interfaces(Filters=[
                 {'Name': 'group-id', 'Values': [sg_id]},
             ])['NetworkInterfaces']
-            for eni in enis:
-                eni_id = eni['NetworkInterfaceId']
-                remaining = [g['GroupId'] for g in eni['Groups'] if g['GroupId'] != sg_id]
-                if not remaining:
-                    logger.warning('ENI %s would have no SGs after removing %s — skipping', eni_id, sg_id)
-                    continue
-                ec2.modify_network_interface_attribute(NetworkInterfaceId=eni_id, Groups=remaining)
-                logger.info('Removed %s from ENI %s', sg_id, eni_id)
-        except Exception as e:
-            logger.warning('Error detaching %s from ENIs: %s', sg_id, e)
+            blocking.extend((sg_id, eni['NetworkInterfaceId']) for eni in enis)
+        if not blocking:
+            logger.info('All ENIs released — proceeding with SG deletion')
+            return
+        logger.info('Waiting for %d ENI(s) to release ALB SGs: %s', len(blocking), blocking)
+        time.sleep(30)
+    logger.warning('Timed out waiting for ENI release after %ds; attempting SG deletion anyway', max_wait)
 
 
 def purge_alb_security_groups(alb_sg_ids):
-    """Clear all rules from and delete every ALB-tagged SG, retrying on DependencyViolation."""
+    """Clear all rules from and delete every ALB-tagged SG."""
     for sg_id in alb_sg_ids:
         try:
             rules = ec2.describe_security_group_rules(
@@ -162,21 +161,11 @@ def purge_alb_security_groups(alb_sg_ids):
         except Exception as e:
             logger.warning('Error clearing rules from %s: %s', sg_id, e)
 
-        # Retry with backoff — ENIs may still be terminating after detach
-        for attempt in range(4):
-            try:
-                ec2.delete_security_group(GroupId=sg_id)
-                logger.info('Deleted security group %s', sg_id)
-                break
-            except Exception as e:
-                if 'DependencyViolation' in str(e) and attempt < 3:
-                    wait = 15 * (2 ** attempt)   # 15 s → 30 s → 60 s
-                    logger.info('DependencyViolation on %s, retrying in %ds (attempt %d/4)',
-                                sg_id, wait, attempt + 1)
-                    time.sleep(wait)
-                else:
-                    logger.warning('Error deleting sg %s: %s', sg_id, e)
-                    break
+        try:
+            ec2.delete_security_group(GroupId=sg_id)
+            logger.info('Deleted security group %s', sg_id)
+        except Exception as e:
+            logger.warning('Error deleting sg %s: %s', sg_id, e)
 
 
 def handler(event, context):
@@ -187,6 +176,6 @@ def handler(event, context):
         delete_target_groups(cluster_name)
         alb_sg_ids = _get_alb_sg_ids(cluster_name)
         remove_external_references(alb_sg_ids)    # revokes cross-SG rules (ingress + egress)
-        detach_from_enis(alb_sg_ids)              # removes SGs from Fargate pod ENIs
-        purge_alb_security_groups(alb_sg_ids)     # clears own rules, deletes with retry
+        wait_for_eni_release(alb_sg_ids)          # waits for Fargate pod ENIs to be released
+        purge_alb_security_groups(alb_sg_ids)     # clears own rules, then deletes
     return {'PhysicalResourceId': 'sg-cleanup-' + cluster_name}
