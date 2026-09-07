@@ -1,6 +1,5 @@
 import boto3
 import logging
-import time
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -50,44 +49,56 @@ def delete_target_groups(cluster_name):
             logger.warning('Error deleting TG %s: %s', arn, e)
 
 
-def remove_load_balancer_sg_rule(cluster_name):
-    """Remove port-8080 ingress rules that EKS cluster SGs have referencing the ALB SGs."""
-    sgs = ec2.describe_security_groups(Filters=[
-        {'Name': 'tag:aws:eks:cluster-name', 'Values': [cluster_name]},
-        {'Name': 'tag:kubernetes.io/cluster/' + cluster_name, 'Values': ['owned']},
-    ])
-    for sg in sgs['SecurityGroups']:
-        try:
-            rules = ec2.describe_security_group_rules(
-                Filters=[{'Name': 'group-id', 'Values': [sg['GroupId']]}]
-            )
-            rule_ids = [
-                r['SecurityGroupRuleId'] for r in rules['SecurityGroupRules']
-                if not r['IsEgress']
-                and r['IpProtocol'] == 'tcp'
-                and r.get('FromPort') == 8080
-                and r.get('ToPort') == 8080
-            ]
-            if rule_ids:
-                ec2.revoke_security_group_ingress(GroupId=sg['GroupId'], SecurityGroupRuleIds=rule_ids)
-                logger.info('Revoked rules %s from %s', rule_ids, sg['GroupId'])
-        except Exception as e:
-            logger.warning('Error processing sg %s: %s', sg['GroupId'], e)
-
-
-def purge_alb_security_groups(cluster_name):
-    """Clear all rules from and delete every SG tagged with elbv2.k8s.aws/cluster."""
+def _get_alb_sg_ids(cluster_name):
+    """Return all SG IDs tagged with elbv2.k8s.aws/cluster for this cluster."""
     sgs = ec2.describe_security_groups(Filters=[
         {'Name': 'tag:elbv2.k8s.aws/cluster', 'Values': [cluster_name]},
-    ])
-    for sg in sgs['SecurityGroups']:
-        sg_id = sg['GroupId']
+    ])['SecurityGroups']
+    return {sg['GroupId'] for sg in sgs}
+
+
+def remove_external_references(alb_sg_ids):
+    """Remove any ingress rules in non-ALB SGs that reference an ALB SG as source.
+
+    The backend SG and ALB SG can have DependencyViolation on deletion if other
+    SGs (cluster SGs, Fargate pod ENI SGs) still reference them as ingress sources.
+    """
+    for sg_id in alb_sg_ids:
+        try:
+            referencing = ec2.describe_security_groups(Filters=[
+                {'Name': 'ip-permission.group-id', 'Values': [sg_id]},
+            ])['SecurityGroups']
+            for ref_sg in referencing:
+                if ref_sg['GroupId'] in alb_sg_ids:
+                    continue  # cross-references within ALB SGs are cleared separately
+                rules = ec2.describe_security_group_rules(
+                    Filters=[{'Name': 'group-id', 'Values': [ref_sg['GroupId']]}]
+                )['SecurityGroupRules']
+                to_revoke = [
+                    r['SecurityGroupRuleId'] for r in rules
+                    if not r['IsEgress']
+                    and r.get('ReferencedGroupInfo', {}).get('GroupId') == sg_id
+                ]
+                if to_revoke:
+                    ec2.revoke_security_group_ingress(
+                        GroupId=ref_sg['GroupId'],
+                        SecurityGroupRuleIds=to_revoke,
+                    )
+                    logger.info('Revoked %d rule(s) referencing %s from %s',
+                                len(to_revoke), sg_id, ref_sg['GroupId'])
+        except Exception as e:
+            logger.warning('Error removing external references to %s: %s', sg_id, e)
+
+
+def purge_alb_security_groups(alb_sg_ids):
+    """Clear all rules from and delete every ALB-tagged SG."""
+    for sg_id in alb_sg_ids:
         try:
             rules = ec2.describe_security_group_rules(
                 Filters=[{'Name': 'group-id', 'Values': [sg_id]}]
-            )
-            ingress_ids = [r['SecurityGroupRuleId'] for r in rules['SecurityGroupRules'] if not r['IsEgress']]
-            egress_ids  = [r['SecurityGroupRuleId'] for r in rules['SecurityGroupRules'] if r['IsEgress']]
+            )['SecurityGroupRules']
+            ingress_ids = [r['SecurityGroupRuleId'] for r in rules if not r['IsEgress']]
+            egress_ids  = [r['SecurityGroupRuleId'] for r in rules if r['IsEgress']]
             if ingress_ids:
                 ec2.revoke_security_group_ingress(GroupId=sg_id, SecurityGroupRuleIds=ingress_ids)
             if egress_ids:
@@ -107,6 +118,7 @@ def handler(event, context):
     if event['RequestType'] == 'Delete':
         delete_load_balancers(cluster_name)   # waits for deletion to complete
         delete_target_groups(cluster_name)
-        remove_load_balancer_sg_rule(cluster_name)
-        purge_alb_security_groups(cluster_name)
+        alb_sg_ids = _get_alb_sg_ids(cluster_name)
+        remove_external_references(alb_sg_ids)  # clears cross-SG references before deletion
+        purge_alb_security_groups(alb_sg_ids)
     return {'PhysicalResourceId': 'sg-cleanup-' + cluster_name}
